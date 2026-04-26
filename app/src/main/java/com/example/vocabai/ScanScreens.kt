@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -70,7 +71,7 @@ fun ScanResultScreen(
       PrimaryActionButton(
         text = if (feedback.canSave) "단어장 저장" else "저장할 단어가 없습니다",
         icon = Icons.Default.Edit,
-        modifier = Modifier.fillMaxWidth().padding(18.dp),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(18.dp),
         enabled = feedback.canSave,
         onClick = { onSave(title, editableWords) },
       )
