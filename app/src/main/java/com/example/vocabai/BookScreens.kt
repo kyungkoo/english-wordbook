@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Quiz
@@ -60,7 +62,9 @@ fun VocabularyBookScreen(
   onDeleteWord: (String) -> Unit,
   onMemorized: (String) -> Unit,
   onNeedsReview: (String) -> Unit,
+  isSpeakingWordList: Boolean,
   onSpeak: (String) -> Unit,
+  onToggleSpeakWordList: (List<String>) -> Unit,
 ) {
   if (book == null) {
     AlertDialog(
@@ -111,6 +115,9 @@ fun VocabularyBookScreen(
           onAddWord = onAddWord,
           onUpdateWord = onUpdateWord,
           onDeleteWord = onDeleteWord,
+          isSpeakingWordList = isSpeakingWordList,
+          onSpeak = onSpeak,
+          onToggleSpeakWordList = onToggleSpeakWordList,
         )
       BookPane.FlipCard ->
         FlipCardScreen(
@@ -222,6 +229,9 @@ private fun WordListScreen(
   onAddWord: (ScannedWord) -> Unit,
   onUpdateWord: (WordEntry) -> Unit,
   onDeleteWord: (String) -> Unit,
+  isSpeakingWordList: Boolean,
+  onSpeak: (String) -> Unit,
+  onToggleSpeakWordList: (List<String>) -> Unit,
 ) {
   var query by rememberSaveable { mutableStateOf("") }
   var reviewOnly by rememberSaveable { mutableStateOf(false) }
@@ -268,10 +278,18 @@ private fun WordListScreen(
       }
     }
     item {
+      IconTextButton(
+        text = if (isSpeakingWordList) "읽기 중지" else "목록 읽기",
+        icon = if (isSpeakingWordList) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onToggleSpeakWordList(filtered.map { it.english }) },
+      )
+    }
+    item {
       Text(if (reviewOnly) "미암기 ${filtered.size}개" else "${filtered.size}개 단어", color = AppColors.Muted)
     }
     items(filtered, key = { it.id }) { word ->
-      WordEntryCard(word = word, onEdit = { editingWord = word })
+      WordEntryCard(word = word, onSpeak = { onSpeak(word.english) }, onEdit = { editingWord = word })
     }
   }
 
@@ -305,17 +323,23 @@ private fun WordListScreen(
 }
 
 @Composable
-private fun WordEntryCard(word: WordEntry, onEdit: () -> Unit) {
+private fun WordEntryCard(word: WordEntry, onSpeak: () -> Unit, onEdit: () -> Unit) {
   NotebookCard(modifier = Modifier.fillMaxWidth()) {
     Box(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-      CompactIconButton(
-        icon = Icons.Default.Edit,
-        contentDescription = "단어 수정",
-        modifier = Modifier.align(Alignment.TopEnd),
-        onClick = onEdit,
-      )
+      Row(modifier = Modifier.align(Alignment.TopEnd), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        CompactIconButton(
+          icon = Icons.AutoMirrored.Filled.VolumeUp,
+          contentDescription = "단어 듣기",
+          onClick = onSpeak,
+        )
+        CompactIconButton(
+          icon = Icons.Default.Edit,
+          contentDescription = "단어 수정",
+          onClick = onEdit,
+        )
+      }
       Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 34.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 52.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {

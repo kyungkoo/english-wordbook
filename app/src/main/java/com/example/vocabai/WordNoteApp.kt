@@ -28,7 +28,11 @@ private sealed interface AppScreen {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WordNoteApp(onSpeak: (String) -> Unit) {
+fun WordNoteApp(
+  isSpeakingWordList: Boolean,
+  onSpeak: (String) -> Unit,
+  onToggleSpeakWordList: (List<String>) -> Unit,
+) {
   val context = LocalContext.current
   val scope = androidx.compose.runtime.rememberCoroutineScope()
   val repository = remember(context) { VocabularyRepository(context) }
@@ -123,7 +127,9 @@ fun WordNoteApp(onSpeak: (String) -> Unit) {
         onDeleteWord = { state = state.deleteWord(it) },
         onMemorized = { wordId -> state = state.markMemorizedAndAdvance(current.bookId, wordId) },
         onNeedsReview = { wordId -> state = state.markNeedsReview(current.bookId, wordId) },
+        isSpeakingWordList = isSpeakingWordList,
         onSpeak = onSpeak,
+        onToggleSpeakWordList = onToggleSpeakWordList,
       )
   }
 
