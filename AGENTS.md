@@ -30,6 +30,18 @@ Run unit tests:
 .\gradlew testDebugUnitTest
 ```
 
+Run ktfmt lint check (style check):
+
+```powershell
+.\gradlew ktfmtCheck
+```
+
+Run ktfmt code formatter:
+
+```powershell
+.\gradlew ktfmtFormat
+```
+
 Build the debug APK:
 
 ```powershell
@@ -53,6 +65,7 @@ Check connected devices:
 - Keep generated build output out of git. `.gradle/`, `.kotlin/`, `app/build/`, and `local.properties` are intentionally ignored.
 - Do not commit `local.properties`; it contains machine-specific Android SDK paths.
 - Keep the project path ASCII-only on Windows. Android/Gradle tooling can fail under non-ASCII project paths.
+- Project modification: **You must run `.\gradlew ktfmtCheck` (or `.\gradlew ktfmtFormat` to auto-fix) to ensure code formatting complies with the styling rule before committing changes.**
 - When changing camera or OCR behavior, verify both gallery input and camera capture paths.
 - Camera capture uses a `FileProvider`; keep `app/src/main/res/xml/file_paths.xml` and the manifest provider in sync.
 - Launcher icons are stored in `mipmap-*`; the high-resolution source and splash image are in `drawable-nodpi`.
