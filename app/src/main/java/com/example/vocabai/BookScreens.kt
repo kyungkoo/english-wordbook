@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-private enum class BookPane {
+enum class BookPane {
     Hub,
     List,
     FlipCard,
@@ -54,7 +54,11 @@ private enum class BookPane {
 fun VocabularyBookScreen(
     book: VocabularyBook?,
     words: List<WordEntry>,
+    pane: BookPane,
     onBack: () -> Unit,
+    onOpenList: () -> Unit,
+    onOpenFlipCard: () -> Unit,
+    onOpenLetterGame: () -> Unit,
     onRenameBook: (String) -> Unit,
     onDeleteBook: () -> Unit,
     onAddWord: (ScannedWord) -> Unit,
@@ -75,7 +79,6 @@ fun VocabularyBookScreen(
         return
     }
 
-    var pane by rememberSaveable { mutableStateOf(BookPane.Hub) }
     var showBookEdit by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val title =
@@ -91,7 +94,7 @@ fun VocabularyBookScreen(
             WordTopBar(
                 title = title,
                 navigationLabel = "←",
-                onNavigation = { if (pane == BookPane.Hub) onBack() else pane = BookPane.Hub },
+                onNavigation = onBack,
                 actionLabel = if (pane == BookPane.Hub) "관리" else null,
                 onAction = if (pane == BookPane.Hub) ({ showBookEdit = true }) else null,
             )
@@ -104,9 +107,9 @@ fun VocabularyBookScreen(
                     book = book,
                     words = words,
                     modifier = Modifier.padding(padding),
-                    onOpenList = { pane = BookPane.List },
-                    onOpenFlipCard = { pane = BookPane.FlipCard },
-                    onOpenLetterGame = { pane = BookPane.LetterGame },
+                    onOpenList = onOpenList,
+                    onOpenFlipCard = onOpenFlipCard,
+                    onOpenLetterGame = onOpenLetterGame,
                 )
             BookPane.List ->
                 WordListScreen(

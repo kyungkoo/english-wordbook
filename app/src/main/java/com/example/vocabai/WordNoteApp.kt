@@ -1,5 +1,6 @@
 package com.example.vocabai
 
+import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,24 +10,26 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private sealed interface AppScreen {
-    data object Home : AppScreen
+private sealed interface AppRoute {
+    data object Home : AppRoute
 
-    data class ScanResult(val words: List<ScannedWord>, val errorMessage: String? = null) :
-        AppScreen
+    data class ScanResult(val words: List<ScannedWord>, val errorMessage: String? = null) : AppRoute
 
-    data class BookDetail(val bookId: String) : AppScreen
+    data class BookDetail(val bookId: String, val pane: BookPane = BookPane.Hub) : AppRoute
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,7 +44,7 @@ fun WordNoteApp(
     val repository = remember(context) { VocabularyRepository(context) }
     var state by remember { mutableStateOf(VocabularyUiState()) }
     var loaded by remember { mutableStateOf(false) }
-    var screen by remember { mutableStateOf<AppScreen>(AppScreen.Home) }
+    val backStack = remember { mutableStateListOf<Any>(AppRoute.Home) }
     var showScanSheet by rememberSaveable { mutableStateOf(false) }
     var isScanning by rememberSaveable { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -57,13 +60,35 @@ fun WordNoteApp(
         }
     }
 
+    fun navigateBack() {
+        if (backStack.size > 1) {
+            backStack.removeLastOrNull()
+        } else {
+            (context as? Activity)?.finish()
+        }
+    }
+
+    fun navigateHome() {
+        backStack.clear()
+        backStack.add(AppRoute.Home)
+    }
+
     fun openScanResult(words: List<ScannedWord>, errorMessage: String? = null) {
         isScanning = false
         showScanSheet = false
-        screen = AppScreen.ScanResult(words = words, errorMessage = errorMessage)
+        if (backStack.lastOrNull() is AppRoute.ScanResult) {
+            backStack.removeLastOrNull()
+        }
+        backStack.add(AppRoute.ScanResult(words = words, errorMessage = errorMessage))
     }
     fun openScanSheet() {
         showScanSheet = true
+    }
+    fun openBook(bookId: String) {
+        backStack.add(AppRoute.BookDetail(bookId = bookId))
+    }
+    fun openBookPane(bookId: String, pane: BookPane) {
+        backStack.add(AppRoute.BookDetail(bookId = bookId, pane = pane))
     }
     val galleryLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -100,48 +125,69 @@ fun WordNoteApp(
             }
         }
 
-    when (val current = screen) {
-        AppScreen.Home ->
-            HomeScreen(
-                state = state,
-                onOpenScan = ::openScanSheet,
-                onOpenBook = { screen = AppScreen.BookDetail(it) },
-            )
+    NavDisplay(
+        backStack = backStack,
+        onBack = ::navigateBack,
+        entryProvider = { key ->
+            when (key) {
+                is AppRoute.Home ->
+                    NavEntry(key) {
+                        HomeScreen(
+                            state = state,
+                            onOpenScan = ::openScanSheet,
+                            onOpenBook = ::openBook,
+                        )
+                    }
 
-        is AppScreen.ScanResult ->
-            ScanResultScreen(
-                words = current.words,
-                errorMessage = current.errorMessage,
-                onBack = { screen = AppScreen.Home },
-                onRetry = ::openScanSheet,
-                onSave = { title, words ->
-                    state = state.saveScannedBook(title, words)
-                    screen = AppScreen.Home
-                },
-            )
+                is AppRoute.ScanResult ->
+                    NavEntry(key) {
+                        ScanResultScreen(
+                            words = key.words,
+                            errorMessage = key.errorMessage,
+                            onBack = ::navigateBack,
+                            onRetry = ::openScanSheet,
+                            onSave = { title, words ->
+                                state = state.saveScannedBook(title, words)
+                                navigateHome()
+                            },
+                        )
+                    }
 
-        is AppScreen.BookDetail ->
-            VocabularyBookScreen(
-                book = state.books.firstOrNull { it.id == current.bookId },
-                words = state.wordsFor(current.bookId),
-                onBack = { screen = AppScreen.Home },
-                onRenameBook = { title -> state = state.renameBook(current.bookId, title) },
-                onDeleteBook = {
-                    state = state.deleteBook(current.bookId)
-                    screen = AppScreen.Home
-                },
-                onAddWord = { word -> state = state.addWord(current.bookId, word) },
-                onUpdateWord = { state = state.updateWord(it) },
-                onDeleteWord = { state = state.deleteWord(it) },
-                onMemorized = { wordId ->
-                    state = state.markMemorizedAndAdvance(current.bookId, wordId)
-                },
-                onNeedsReview = { wordId -> state = state.markNeedsReview(current.bookId, wordId) },
-                isSpeakingWordList = isSpeakingWordList,
-                onSpeak = onSpeak,
-                onToggleSpeakWordList = onToggleSpeakWordList,
-            )
-    }
+                is AppRoute.BookDetail ->
+                    NavEntry(key) {
+                        val bookId = key.bookId
+                        VocabularyBookScreen(
+                            book = state.books.firstOrNull { it.id == bookId },
+                            words = state.wordsFor(bookId),
+                            pane = key.pane,
+                            onBack = ::navigateBack,
+                            onOpenList = { openBookPane(bookId, BookPane.List) },
+                            onOpenFlipCard = { openBookPane(bookId, BookPane.FlipCard) },
+                            onOpenLetterGame = { openBookPane(bookId, BookPane.LetterGame) },
+                            onRenameBook = { title -> state = state.renameBook(bookId, title) },
+                            onDeleteBook = {
+                                state = state.deleteBook(bookId)
+                                navigateHome()
+                            },
+                            onAddWord = { word -> state = state.addWord(bookId, word) },
+                            onUpdateWord = { state = state.updateWord(it) },
+                            onDeleteWord = { state = state.deleteWord(it) },
+                            onMemorized = { wordId ->
+                                state = state.markMemorizedAndAdvance(bookId, wordId)
+                            },
+                            onNeedsReview = { wordId ->
+                                state = state.markNeedsReview(bookId, wordId)
+                            },
+                            isSpeakingWordList = isSpeakingWordList,
+                            onSpeak = onSpeak,
+                            onToggleSpeakWordList = onToggleSpeakWordList,
+                        )
+                    }
+
+                else -> error("Unknown route: $key")
+            }
+        },
+    )
 
     if (showScanSheet) {
         ModalBottomSheet(onDismissRequest = { showScanSheet = false }) {
